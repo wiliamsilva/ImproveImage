@@ -1,9 +1,9 @@
-package br.com.smartimage.test;
+package br.com.improveimage.test;
 
 import java.io.File;
 import java.io.IOException;
 
-import br.com.smartimage.ImproveImage;
+import br.com.improveimage.ImproveImage;
 
 public class TestSimple {
 

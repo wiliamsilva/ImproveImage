@@ -1,4 +1,4 @@
-package br.com.smartimage.test;
+package br.com.improveimage.test;
 
 import java.io.File;
 import java.io.IOException;
@@ -6,7 +6,7 @@ import java.io.IOException;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import br.com.smartimage.ImproveImage;
+import br.com.improveimage.ImproveImage;
 
 public class TestMultiFiles {
 

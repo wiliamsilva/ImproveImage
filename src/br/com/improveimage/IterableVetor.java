@@ -1,4 +1,4 @@
-package br.com.smartimage;
+package br.com.improveimage;
 
 
 import java.util.Iterator;

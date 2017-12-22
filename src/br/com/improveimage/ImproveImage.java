@@ -1,4 +1,4 @@
-package br.com.smartimage;
+package br.com.improveimage;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
