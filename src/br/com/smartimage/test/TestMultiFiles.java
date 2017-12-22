@@ -8,7 +8,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import br.com.smartimage.ImproveImage;
 
-public class Test {
+public class TestMultiFiles {
 
 	public static void main(String[] args) {
 		
@@ -47,16 +47,18 @@ public class Test {
 
 				if (resultFile != null) {
 
-					File newFile = new File(resultFile);
+					long originalSize = file.length();
+					long resultSize = getFileSize(resultFile);
+					double reductionRate = ((1 - (resultSize / (double) originalSize)) * 100.0d); 					
 					
 					System.out.println("-----------------------------------------------------------------------------");
 					System.out.println("Original file name: " + file.getAbsolutePath());
 					System.out.println("Original file size: " + file.length() + " bytes");
 					System.out.println("");
-					System.out.println("Result file name: " + newFile.getAbsolutePath());
-					System.out.println("Result file size: " + newFile.length() + " bytes");
+					System.out.println("Result file name: " + resultFile);
+					System.out.println("Result file size: " + resultSize + " bytes");
 					System.out.println("");
-					System.out.println(String.format("Reduction rate: %.02f", 1 - (newFile.length() / (double) file.length())));
+					System.out.println(String.format("Reduction rate: %.02f %%", reductionRate));
 					System.out.println("");
 
 				}
@@ -66,10 +68,18 @@ public class Test {
 			
 		}
 		
+	}
+
+	public static long getFileSize(String filePath) {
 		
+		File file = new File(filePath);
 		
+		if (file.exists() && file.isFile()) {
+			return file.length();
+		}
 		
-		
+		return 0L;
+
 	}
 	
 	

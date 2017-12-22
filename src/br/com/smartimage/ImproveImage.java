@@ -360,7 +360,13 @@ public class ImproveImage {
 			newName = String.format("nonamed_%d_improved.%s", rnd, outFileType);
 		}
 
-		result = String.format("%s/%s", path, newName);
+		if (path.endsWith("\\") || path.endsWith("/")) {
+			result = String.format("%s%s", path, newName);
+		} else {
+			result = String.format("%s/%s", path, newName);
+		}
+
+		result.replace("\\", "/");
 
 		return result;
 
