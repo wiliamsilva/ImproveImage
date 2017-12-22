@@ -1,13 +1,20 @@
 package br.com.improveimage;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
+import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
+import javax.imageio.stream.ImageOutputStream;
 
 import org.imgscalr.Scalr;
 
@@ -15,6 +22,7 @@ import com.github.jaiimageio.impl.plugins.tiff.TIFFImageReader;
 import com.github.jaiimageio.impl.plugins.tiff.TIFFImageReaderSpi;
 import com.github.jaiimageio.jpeg2000.impl.J2KImageReader;
 import com.github.jaiimageio.jpeg2000.impl.J2KImageReaderSpi;
+import com.github.jaiimageio.plugins.tiff.TIFFImageWriteParam;
 
 /**
  * 
@@ -146,22 +154,88 @@ public class ImproveImage {
 
 		if (needsAutoFit) {
 
-			BufferedImage scaledImg = Scalr.resize(originalImage, Scalr.Method.SPEED, Scalr.Mode.FIT_TO_WIDTH,
-					targetWidth, targetHeight, Scalr.OP_ANTIALIAS);
+			BufferedImage scaledImg = null;
 
 			String outFileType = null;
 			
-			if (isBMP(trueFileType) || isTIF(trueFileType)) {
+			if (isBMP(trueFileType) || isGIF(trueFileType) || isTIF(trueFileType)) {
 				outFileType = "png";
-			} else {
+			}
+			else if (trueFileType.toLowerCase().matches("^.*?(jpeg 2000|jpeg2000|jpeg2).*$")) {
+				outFileType = JP2_EXTENSIONS[0];
+			}
+			else {
 				outFileType = trueFileType;
 			}
 			
-			String outputFileName = createOutputFileName(file, outputFolder, outFileType);
-
-			File outputFile = new File(outputFileName);
+			String outputFileName = null;
+			File outputFile = null;			
 			
-			ImageIO.write(scaledImg, outFileType, outputFile);
+			if (isJP2(outFileType)) {
+
+				outputFileName = createOutputFileName(file, outputFolder, TIF_EXTENSIONS[0]);
+				outputFile = new File(outputFileName);
+
+				Iterator<ImageWriter> writers = ImageIO.getImageWritersBySuffix(TIF_EXTENSIONS[0]);
+				
+				if (writers.hasNext()) {
+
+					ImageWriter writer = writers.next();
+			        TIFFImageWriteParam writeParams = (TIFFImageWriteParam) writer.getDefaultWriteParam();
+			        
+			        for (String c: writeParams.getCompressionTypes()) {
+			        	System.err.println(c);
+			        }
+			        
+			        writeParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+			        writeParams.setCompressionType("LZW");
+			        writeParams.setCompressionQuality(0.7f);
+			        writeParams.setTilingMode(ImageWriteParam.MODE_EXPLICIT);
+			        writeParams.setTiling(targetWidth, targetHeight, 0, 0);
+
+					RenderedImage renderedImg = originalImage;
+					IIOMetadata metadata = writer.getDefaultImageMetadata(new ImageTypeSpecifier(renderedImg), writeParams);
+
+					ImageOutputStream ios = ImageIO.createImageOutputStream(outputFile);
+			        writer.setOutput(ios);					
+					
+					try {
+						
+						writer.prepareWriteSequence(metadata);		
+						writer.writeToSequence(new IIOImage(renderedImg, null, metadata), writeParams);
+						
+						writer.endWriteSequence();
+
+					} finally {
+
+						if (ios != null) {
+							ios.close();
+						}
+
+					}
+					
+				} else {
+
+					throw new IOException(String.format("Unsupported image format from file: %s.", fileToImprove));
+
+				}
+			       
+				outputFileName = perform(outputFileName, outputFolder);
+
+				// Delete after created a new file as PNG (TIFF->PNG)
+				outputFile.delete();
+				
+			} else {
+
+				outputFileName = createOutputFileName(file, outputFolder, outFileType);
+				outputFile = new File(outputFileName);
+				
+				scaledImg = Scalr.resize(originalImage, Scalr.Method.SPEED, Scalr.Mode.FIT_EXACT, targetWidth, targetHeight, Scalr.OP_ANTIALIAS);
+
+				ImageIO.write(scaledImg, outFileType, outputFile);
+				
+			}
+			
 
 			result = outputFileName;
 
@@ -220,7 +294,7 @@ public class ImproveImage {
 			reader.setInput(imageInputStream, true);
 
 			trueFileType = reader.getFormatName();
-
+			
 		} else {
 
 			trueFileType = fileType;
@@ -237,7 +311,32 @@ public class ImproveImage {
 	}
 
 
-	private static String extractFileType(String fileName) {
+	public static String extractFileName(String fileName) {
+
+		String _fileName = null;
+		
+		if (fileName == null || fileName.trim().length() == 0) {
+			return _fileName;
+		}
+
+		String fragments[] = fileName.trim().replace('\\', '/').split("/");
+		
+		if (fragments.length == 1 && fragments[0].indexOf(":") == -1) {
+			_fileName = fragments[0];
+		}
+		else if (fragments.length > 1) {
+			_fileName = fragments[fragments.length -1];
+		}
+
+		if (_fileName != null) {
+			_fileName = _fileName.split("\\.")[0];
+		}
+
+		return _fileName;
+
+	}
+	
+	public static String extractFileType(String fileName) {
 
 		if (fileName == null || fileName.trim().length() == 0) {
 			return null;
@@ -348,8 +447,11 @@ public class ImproveImage {
 		final String path = indicatedFolder != null? indicatedFolder: originalFile.getParent();
 		final String name = originalFile.getName().trim().toLowerCase();
 
-		final String[] nameFragments = name.split("\\.");
-
+		String[] nameFragments = name.split("\\.");
+		if (nameFragments != null && nameFragments.length >= 1) {
+			nameFragments = nameFragments[0].split("_");
+		}
+		
 		String newName = null;
 
 		int rnd = randomBetween(1000, 99999);
